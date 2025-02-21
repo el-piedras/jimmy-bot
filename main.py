@@ -3,9 +3,6 @@ from discord.ext import commands
 from utils import *
 import credentials
 import gspread
-from google.oauth2.service_account import Credentials
-
-
 
 ## Google Sheets Init
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -41,9 +38,7 @@ GUILD_ID = discord.Object(id=1341169501315534878)
 async def AddUser(interaction: discord.Interaction, username: discord.Member):
 
     ## Gets Member object
-    userToCheck = interaction.guild.get_member(interaction.user.id)
-    if not userToCheck:
-        userToCheck = await interaction.guild.fetch_member(interaction.user.id)
+    userToCheck = await GetInteractionCaller(interaction)
 
     ## Checks if interaction user has necessary roles
     if not HasClearance(3, userToCheck):
