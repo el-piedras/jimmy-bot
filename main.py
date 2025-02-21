@@ -46,8 +46,8 @@ async def AddUser(interaction: discord.Interaction, username: discord.Member):
         return
 
     ## Checks if username exists in database
-    robloxUser = username.nick or username.global_name or username.name
-    userExists = trooperSheet.find(robloxUser, in_column=2)
+    userToAdd = username.nick or username.global_name or username.name
+    userExists = trooperSheet.find(userToAdd, in_column=2)
 
     ## If user is already in DB, send response and cancel
     if userExists:
@@ -55,7 +55,7 @@ async def AddUser(interaction: discord.Interaction, username: discord.Member):
         return
 
     ## Data to insert for new members
-    memberDefaultData = [robloxUser, "Recruit", 0, 0, 0, 0, "FALSE", 0, None, str(username.joined_at.date())]
+    memberDefaultData = [userToAdd, "Recruit", 0, 0, 0, 0, "FALSE", 0, None, str(username.joined_at.date())]
 
     ## Flag to check if gaps exist  
     foundEmpty = False
@@ -72,13 +72,13 @@ async def AddUser(interaction: discord.Interaction, username: discord.Member):
             break
 
         ## Otherwise, generates a new row and populates it
-    if not foundEmpty:
+    if not foundEmpty:        
+        i + 1 ## Must account index for the newly added row
         trooperSheet.append_row(memberDefaultData, value_input_option="USER_ENTERED")
-        i + 1 ## Must accound index for the newly added row
-
+    
     ## Generates and sends confirmation response
     newEmbed = discord.Embed(title="Added user", color=discord.Color.orange())
-    newEmbed.add_field(name="Username", value=robloxUser, inline=True)
+    newEmbed.add_field(name="Username", value=userToAdd, inline=True)
     newEmbed.add_field(name="Join date", value=username.joined_at.date(), inline=True)
     newEmbed.add_field(name="Row in Database", value=i, inline=True)
     newEmbed.set_footer(text="212th Attack Battalion Tracker")
@@ -89,7 +89,7 @@ async def AddUser(interaction: discord.Interaction, username: discord.Member):
 async def GetUserInfo(interaction: discord.Interaction, user: discord.Member):
 
     ## Checks if caller has permission
-    userToCheck = GetInteractionCaller(interaction)
+    userToCheck = await GetInteractionCaller(interaction)
 
     if not HasClearance(1, userToCheck):
         await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} You don't have permission to run this command.")
@@ -124,5 +124,30 @@ async def GetUserInfo(interaction: discord.Interaction, user: discord.Member):
     newEmbed.add_field(name="Join Date", value=flatList[9])
     newEmbed.set_footer(text="212th Attack Battalion Tracker")
     await interaction.response.send_message(embed=newEmbed, delete_after=60)
+
+@client.tree.command(name="remove-user", description="Removes the user from the database", guild=GUILD_ID)
+async def GetUserInfo(interaction: discord.Interaction, user: discord.Member):
+
+    ## Check if the caller has permissions
+    userToCheck = await GetInteractionCaller(interaction)
+
+    if not HasClearance(3, userToCheck):
+        await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} You don't have permission to run this command.")
+        return
+
+    userToRemove = user.nick or user.global_name or user.name
+    usernameCell = trooperSheet.find(userToRemove)
+
+    if not usernameCell:
+        await interaction.response.send_message(f"{interaction.user.mention} User not found in database.")
+        return
+    
+    if usernameCell.row == trooperSheet.row_count:
+        trooperSheet.delete_rows(usernameCell.row)
+
+    else:
+        trooperSheet.update(range_name=f"B{usernameCell.row}:K{usernameCell.row}", values=[["","","0","0","0","0","FALSE","0","FALSE",""]], value_input_option="USER_ENTERED")
+    
+    await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} User has been successfully removed from the database.")
 
 client.run(credentials.botKey)
