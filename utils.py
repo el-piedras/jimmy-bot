@@ -18,3 +18,12 @@ def HasClearance(requiredClearance: int, interactionUser: discord.Member) -> boo
         return True
     else:
         return False
+
+## Prevents bot from using "User" instead of "Member" class    
+async def GetInteractionCaller(interaction: discord.Interaction):
+    caller = interaction.guild.get_member(interaction.user.id)
+    if not caller:
+        caller = await interaction.guild.fetch_member(interaction.user.id)
+    elif not caller:
+        return interaction.user
+    return caller
