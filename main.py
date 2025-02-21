@@ -88,6 +88,13 @@ async def AddUser(interaction: discord.Interaction, username: discord.Member):
 @client.tree.command(name="fetch-data", description="Gets the specified user's join date, events attended and strikes", guild=GUILD_ID)
 async def GetUserInfo(interaction: discord.Interaction, user: discord.Member):
 
+    ## Checks if caller has permission
+    userToCheck = GetInteractionCaller(interaction)
+
+    if not HasClearance(1, userToCheck):
+        await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} You don't have permission to run this command.")
+        return
+    
     ## Checks if user is in database
     userToFetch = user.nick or user.global_name or user.name
     usernameCell = trooperSheet.find(userToFetch)
