@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from datetime import datetime, timedelta
 from utils import *
 import credentials
 import gspread
@@ -149,5 +150,61 @@ async def GetUserInfo(interaction: discord.Interaction, user: discord.Member):
         trooperSheet.update(range_name=f"B{usernameCell.row}:K{usernameCell.row}", values=[["","","0","0","0","0","FALSE","0","FALSE",""]], value_input_option="USER_ENTERED")
     
     await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} User has been successfully removed from the database.")
+
+@client.tree.command(name="quota-check", description="Checks if anyone in the database hasn't completed their quota and applies strike if necessary.", guild=GUILD_ID)
+async def CheckQuota(interaction: discord.Interaction):
+
+    ## Check if the caller has permissions
+    userToCheck = await GetInteractionCaller(interaction)
+
+    if not HasClearance(3, userToCheck):
+        await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} You don't have permission to run this command.")
+        return
+
+    data = trooperSheet.batch_get(["G20:G", "H20:H", "J20:J", "K20:K", "E20:E"])
+
+    updates = [] ## Stores changes for batch update (Less API calls)
+
+    ## Separate data into different variables
+    quotaSrikes = data[0] if data[0] else []
+    hasInactivityNotice = data[1] if data[1] else []
+    hasCompletedQuota = data[2] if data[2] else []
+    joinDate = data[3] if data[3] else []
+    weeklyEvents = data[4] if data[4] else []
+
+    sevenDaysAgo = datetime.today() - timedelta(days=7)
+
+    for i, (strikes, inactivity, quotaPassed, date, events) in enumerate(zip(quotaSrikes, hasInactivityNotice, hasCompletedQuota, joinDate, weeklyEvents), start=20):
+        ## Handle for missing cells + flatlists
+        strikes = strikes[0] if strikes else "0"
+        inactivity = inactivity[0] if inactivity else "FALSE"
+        quotaPassed = quotaPassed[0] if quotaPassed else "FALSE"
+        date = str(date[0]) if date else str(datetime.today)
+        events = events[0] if events else "0"
+
+        ## If there data missing, skip current iteration
+        if not strikes or not inactivity or not date:
+            continue
+
+        joinDateObj = datetime.strptime(date, "%Y-%m-%d") ## Convert join date cell into datetime object to compare it against seven days ago
+
+        ## Logic for applying strikes
+        if joinDateObj < sevenDaysAgo and inactivity == "FALSE" and quotaPassed == "FALSE":
+            newStrike = int(strikes[0]) + 1
+            updates.append({
+                "range": f"G{i}",
+                "values": [[newStrike]]
+            })
+
+        ## Reset weekly events to 0
+        if events != 0:
+            updates.append({
+                "range": f"E{i}",
+                "values": [[0]]
+            })
+
+    if updates:
+        trooperSheet.batch_update(updates)
+        await interaction.response.send_message(content=f"{interaction.user.mention} Quota has been checked, weekly events reset.")
 
 client.run(credentials.botKey)
