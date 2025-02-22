@@ -112,7 +112,7 @@ async def GetUserInfo(interaction: discord.Interaction, user: discord.Member):
     ]
 
     ## Generate response...
-    newEmbed = discord.Embed(title=f"Database data for {user.mention}", color=discord.Color.orange())
+    newEmbed = discord.Embed(title=f"Database data for {userToFetch}", color=discord.Color.orange())
     newEmbed.add_field(name="Username", value=flatList[0])
     newEmbed.add_field(name="Rank", value=flatList[1])
     newEmbed.add_field(name="Events Attended", value=flatList[2])
