@@ -187,8 +187,10 @@ async def CheckQuota(interaction: discord.Interaction):
         ## If there data missing, skip current iteration
         if not strikes or not inactivity or not date:
             continue
-
+        
+        ########### MUST CHANGE ########### >> YYYY-MM-DD
         joinDateObj = datetime.strptime(date, "%d/%m/%y") ## Convert join date cell into datetime object to compare it against seven days ago
+        ########### MUST CHANGE ########### >> YYYY-MM-DD
 
         ## Logic for applying strikes
         if joinDateObj < sevenDaysAgo and inactivity == "FALSE" and quotaPassed == "FALSE":
@@ -208,5 +210,28 @@ async def CheckQuota(interaction: discord.Interaction):
     if updates:
         trooperSheet.batch_update(updates)
         await interaction.response.send_message(content=f"{interaction.user.mention} Quota has been checked, weekly events reset.")
+@client.tree.command(name="add-event", description="Adds an Event Point to the specified user's weekly, current company, and total events attended cells", guild=GUILD_ID)
+async def AddEventPoint(interaction: discord.Interaction, user: discord.Member):
+
+    ## Check if the caller has permissions
+    userToCheck = await GetInteractionCaller(interaction)
+
+    if not HasClearance(2, userToCheck):
+        await interaction.response.send_message(ephemeral=True, content=f"{interaction.user.mention} You don't have permission to run this command.")
+        return
+
+    userToAddEP = user.nick or user.global_name or user.name
+    usernameCell = trooperSheet.find(query=userToAddEP, in_column=2)
+
+    if not usernameCell:
+        await interaction.response.send_message(f"User {userToAddEP} wasn't found in DB")
+        return
+    
+    rowToUpdate = trooperSheet.get(range_name=f"D{usernameCell.row}:F{usernameCell.row}")
+
+    newValues = [[str(int(x) + 1) for x in sublist] for sublist in rowToUpdate]
+    trooperSheet.update(range_name=f"D{usernameCell.row}:F{usernameCell.row}",values=newValues, value_input_option="USER_ENTERED")
+
+    await interaction.response.send_message(f"DEBUGLOG: userToAddEP: {userToAddEP}. usernameCell: {usernameCell}, usernameCell.row: {usernameCell.row}. rowToUpdate: {rowToUpdate}")
 
 client.run(credentials.botKey)
